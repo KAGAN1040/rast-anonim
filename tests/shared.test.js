@@ -1,96 +1,79 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('../shared');
-const profile = (gender, age = 25, city = 'Ankara') => ({ age, city, gender, orientation: 'Biseksüel', education: 'Lisans' });
-const filters = (overrides = {}) => ({ minAge:18, maxAge:35, city:D.any, education:D.any, orientation:D.any, genders:[...D.genders], ...overrides });
-const spec = (mode, gender, f = {}, age = 25, city = 'Ankara') => ({ mode, profile: profile(gender, age, city), filters: filters(f) });
 
-test('18 yaş altı, sahte bilgi ve geçersiz aralık kabul edilmez', () => {
-  assert.equal(D.validate(spec('chat', 'Kadın', {}, 17)), null);
-  assert.equal(D.validate(spec('chat', 'Erkek', { minAge: 27, maxAge: 22 })), null);
+const spec = (mode = 'chat', gender = 'Kadın', age = 25, opts = {}) => ({
+  mode, profile: { age, gender },
+  filters: { minAge: 18, maxAge: 99, genders: [...D.genders], ...opts }
+});
+const duo = (gameId = 'valorant', rank = 'Altın', desiredRank = D.any, gender = 'Kadın') => ({
+  ...spec('game', gender),
+  game: { id: gameId, rank }, gameFilters: { rank: desiredRank }
+});
+
+test('her üç modda yalnızca yaş ve cinsiyet profili kullanılır', () => {
+  for (const mode of ['chat', 'date', 'game']) {
+    const input = mode === 'game' ? duo() : spec(mode);
+    // Eskiden bulunan alanlar gönderilse bile sunucunun profiline taşınmaz.
+    input.profile.city = 'Ankara'; input.profile.orientation = 'Heteroseksüel';
+    input.profile.education = 'Lisans';
+    input.filters.city = 'İstanbul';
+    const value = D.validate(input);
+    assert.deepEqual(value.profile, { age: 25, gender: 'Kadın' });
+    assert.deepEqual(Object.keys(value.filters).sort(), ['genders', 'maxAge', 'minAge']);
+  }
+});
+test('18 yaş altı ve 99 yaş üstü beyanları reddedilir', () => {
+  assert.equal(D.validate(spec('chat', 'Kadın', 17)), null);
+  assert.equal(D.validate(spec('date', 'Erkek', 100)), null);
+  assert.ok(D.validate(spec('chat', 'Erkek', 18)));
+});
+test('geçersiz cinsiyet ve tercih aralıkları reddedilir', () => {
   assert.equal(D.validate(spec('chat', 'Sahte')), null);
-  assert.equal(D.validate(spec('unknown', 'Kadın')), null);
+  assert.equal(D.validate(spec('date', 'Erkek', 25, { minAge: 30, maxAge: 24 })), null);
+  assert.equal(D.validate(spec('chat', 'Erkek', 25, { genders: [] })), null);
+  assert.equal(D.validate(spec('chat', 'Erkek', 25, { genders: ['Kadın', 'Kadın'] })), null);
+  assert.equal(D.validate(spec('chat', 'Erkek', 25, { genders: ['Robot'] })), null);
+  assert.equal(D.validate(spec('abc')), null);
 });
-test('83 şehir, cinsiyet ve yönelim listesi işlevsel', () => {
-  assert.ok(D.cities.includes('İstanbul'));
-  assert.ok(D.cities.includes('Yurt dışı'));
-  assert.ok(D.genders.includes('Non-binary'));
-  assert.ok(D.orientations.includes('Panseksüel'));
+test('sohbet, date ve duo ayrı havuzlardır', () => {
+  assert.equal(D.compatible(spec('chat'), spec('date')), false);
+  assert.equal(D.compatible(spec('chat'), duo()), false);
+  assert.equal(D.compatible(spec('date'), duo()), false);
 });
-test('Sohbet ile date havuzları karışmaz', () => {
-  assert.equal(D.compatible(spec('chat', 'Kadın'), spec('date', 'Erkek')), false);
-});
-test('Eşleşme her iki kişinin tercihlerini sağlamalıdır', () => {
-  const a = spec('date', 'Kadın', { genders: ['Erkek'], minAge: 23, maxAge: 33 });
-  const b = spec('date', 'Erkek', { genders: ['Kadın'], minAge: 21, maxAge: 28 });
-  const c = spec('date', 'Erkek', { genders: ['Erkek'] });
+test('yaş ve cinsiyet karşılıklı olarak kontrol edilir', () => {
+  const a = spec('date', 'Kadın', 22, { minAge: 24, maxAge: 32, genders: ['Erkek'] });
+  const b = spec('date', 'Erkek', 28, { minAge: 20, maxAge: 25, genders: ['Kadın'] });
   assert.equal(D.compatible(a, b), true);
-  assert.equal(D.compatible(a, c), false);
-});
-test('Yaş, şehir, eğitim, yönelim filtreleri çalışır', () => {
-  const a = spec('date', 'Kadın', { city: 'Ankara', education: 'Lisans', orientation: 'Biseksüel', minAge: 24, maxAge: 31 });
-  assert.equal(D.compatible(a, spec('date', 'Erkek', {}, 24, 'İstanbul')), false);
-  assert.equal(D.compatible(a, spec('date', 'Erkek', {}, 34, 'Ankara')), false);
-  assert.equal(D.compatible(a, spec('date', 'Erkek', {}, 29, 'Ankara')), true);
-});
-test('Boş ve tekrar cinsiyet tercihi reddedilir', () => {
-  assert.equal(D.validate(spec('chat', 'Erkek', { genders:[] })), null);
-  assert.equal(D.validate(spec('chat', 'Erkek', { genders:['Kadın','Kadın'] })), null);
-});
-
-test('Date için açık hetero / eşcinsel uyumsuzluğu elenir', () => {
-  const a = spec('date', 'Kadın'); a.profile.orientation = 'Heteroseksüel';
-  const b = spec('date', 'Kadın'); b.profile.orientation = 'Biseksüel';
-  const c = spec('date', 'Erkek'); c.profile.orientation = 'Heteroseksüel';
+  b.filters.genders = ['Erkek'];
   assert.equal(D.compatible(a, b), false);
-  assert.equal(D.compatible(a, c), true);
-  b.profile.orientation = 'Eşcinsel'; a.profile.orientation = 'Eşcinsel';
-  assert.equal(D.compatible(a, b), true);
+  b.filters.genders = ['Kadın'];
+  b.profile.age = 34;
+  assert.equal(D.compatible(a, b), false);
+  b.profile.age = 28; a.profile.age = 19;
+  assert.equal(D.compatible(a, b), false);
 });
-
-const gameSpec = (gameId = 'valorant', overrides = {}, search = {}) => {
-  const rank = D.games.find(g => g.id === gameId)?.ranks[0] || 'Derecesiz';
-  return {
-    ...spec('game', 'Erkek'),
-    game: { id: gameId, rank, region: 'Türkiye', platform: 'PC', microphone: 'Var', style: 'Rekabetçi', time: 'Akşam', ...overrides },
-    gameFilters: { rank: D.any, region: D.any, platform: D.any, microphone: D.any, style: D.any, time: D.any, ...search }
-  };
-};
-
-test('DUO havuzunda tam 10 oyun bulunur; LoL, VALORANT, CS2 dahil', () => {
+test('yönelim ve eğitim artık date eşleşmesini engellemez', () => {
+  const a = spec('date', 'Kadın'); a.profile.orientation = 'Heteroseksüel';
+  const b = spec('date', 'Kadın'); b.profile.orientation = 'Eşcinsel';
+  assert.equal(D.compatible(D.validate(a), D.validate(b)), true);
+});
+test('DUO için 10 oyun vardır; LoL, VALORANT ve CS2 dahil', () => {
   assert.equal(D.games.length, 10);
   assert.equal(new Set(D.games.map(g => g.id)).size, 10);
   for (const id of ['lol', 'valorant', 'cs2']) assert.ok(D.games.some(g => g.id === id));
-  assert.equal(D.validate(gameSpec('valorant'))?.mode, 'game');
 });
-test('rank havuzları oyuna göre doğrulanır; sahte oyun ve hileli filtreler reddedilir', () => {
-  assert.equal(D.validate(gameSpec('hacked')), null);
-  assert.equal(D.validate(gameSpec('valorant', {rank: 'FACEIT 10'})), null);
-  assert.equal(D.validate(gameSpec('cs2', {}, {rank: 'Radyant'})), null);
-  assert.equal(D.validate(gameSpec('lol', {platform: 'PlayBox'})), null);
-  assert.equal(D.validate(gameSpec('lol', {}, {microphone: 'İstediğim gibi'})), null);
-  assert.equal(D.validate({ ...gameSpec('valorant'), gameFilters: null }), null);
+test('DUO aynı oyun için ve karşılıklı rank tercihleriyle eşleşir', () => {
+  assert.equal(D.compatible(duo('valorant', 'Altın'), duo('valorant', 'Demir')), true);
+  assert.equal(D.compatible(duo('valorant'), duo('lol')), false);
+  assert.equal(D.compatible(duo('valorant', 'Altın', 'Demir'), duo('valorant', 'Demir', 'Altın')), true);
+  assert.equal(D.compatible(duo('valorant', 'Altın', 'Demir'), duo('valorant', 'Altın')), false);
+  assert.equal(D.compatible(duo('valorant', 'Altın', 'Demir'), duo('valorant', 'Demir', 'Platin')), false);
 });
-test('DUO yalnızca aynı oyunda ve iki tarafın kabul ettiği filtrelerle eşleştirir', () => {
-  const a = gameSpec('valorant');
-  const b = gameSpec('valorant');
-  assert.equal(D.compatible(a, b), true);
-  assert.equal(D.compatible(a, gameSpec('lol')), false);
-  assert.equal(D.compatible(a, spec('chat', 'Erkek')), false);
-  assert.equal(D.compatible(a, spec('date', 'Erkek')), false);
-  const tests = [
-    { profile: { rank: 'Altın' }, filter: { rank: 'Demir' } },
-    { profile: {region:'Kuzey Amerika'}, filter: {region: 'Türkiye'} },
-    { profile: {platform:'Xbox'}, filter: {platform: 'PC'} },
-    { profile: {microphone:'Yok'}, filter: {microphone: 'Var'} },
-    { profile: {style:'Rahat'}, filter: {style: 'Rekabetçi'} },
-    { profile: {time:'Gece'}, filter: {time: 'Akşam'} }
-  ];
-  for (const case_ of tests) {
-    const other = gameSpec('valorant', case_.profile);
-    const picky = gameSpec('valorant', {}, case_.filter);
-    assert.equal(D.compatible(picky, other), false, `Esnek olmayan filtre: ${JSON.stringify(case_)}`);
-    assert.equal(D.compatible(other, picky), false, 'Eşleşme simetrik olmalı');
-  }
-  assert.equal(D.compatible(gameSpec('valorant', {style:'Her ikisi', time: 'Esnek'}), gameSpec('valorant', {}, {style: 'Rahat',time:'Gündüz'})), true);
+test('oyuna ait olmayan rank ve sahte oyun reddedilir', () => {
+  assert.equal(D.validate(duo('wrong')), null);
+  assert.equal(D.validate(duo('valorant', 'FACEIT 10')), null);
+  assert.equal(D.validate(duo('cs2', 'Derecesiz', 'Radyant')), null);
+  assert.equal(D.validate({ ...duo(), gameFilters: null }), null);
+  assert.equal(D.validate(duo('minecraft', 'Derece yok', D.any))?.game.rank, 'Derece yok');
 });
