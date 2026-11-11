@@ -7,10 +7,10 @@
   <meta name="description" content="Rast: anonim sohbet et, date bul veya LoL, VALORANT, CS2 dahil 10 oyunda duo bul. 18+.">
   <title>Rast. — Tanışmanın farklı bir yolu</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css">
-  <script src="/shared.js" defer></script>
+  <link rel="stylesheet" href="/style.css?v=1.2.0">
+  <script src="/shared.js?v=1.2.0" defer></script>
   <script src="/socket.io/socket.io.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=1.2.0" defer></script>
 </head>
 <body>
   <div class="site-glow site-glow-a" aria-hidden="true"></div><div class="site-glow site-glow-b" aria-hidden="true"></div>
@@ -44,7 +44,7 @@
             <span class="card-orb orb-date"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 27S4 20 4 12.5C4 6 12 3.5 16 9c4-5.5 12-3 12 3.5C28 20 16 27 16 27Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m16 13 2 3-2 3-2-3 2-3Z" fill="currentColor"/></svg></span>
             <span class="mode-overline">02 / YENİ BİR BAĞ KUR</span>
             <span class="mode-heading">DATE BUL <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span class="mode-desc">Sana uygun biriyle yolun kesişsin. İki tarafın tercihleri uyduğunda anonim olarak tanış.</span>
+            <span class="mode-desc">Sana uygun biriyle yolun kesişsin. Yalnızca yaş ve cinsiyet tercihlerinle anonim olarak tanış.</span>
             <span class="mode-foot"><span class="foot-indicator"><span></span> Karşılıklı tercihler</span><span class="card-arrow">↗</span></span>
           </button>
           <button type="button" class="mode-card mode-game" id="chooseGame">
@@ -52,7 +52,7 @@
             <span class="mode-overline">03 / BİRLİKTE OYNA</span>
             <span class="mode-heading">DUO BUL <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <span class="mode-desc">LoL, VALORANT, CS2 ve daha fazlası. Oyununu ve rankını seç, sana uygun takım arkadaşını bul.</span>
-            <span class="mode-foot"><span class="foot-indicator"><span></span> 10 online oyun • rank & mikrofon filtresi</span><span class="card-arrow">↗</span></span>
+            <span class="mode-foot"><span class="foot-indicator"><span></span> 10 online oyun • oyun & rank filtresi</span><span class="card-arrow">↗</span></span>
           </button>
         </div>
         <div class="hero-trust"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Zm-4-10 3 3 5-6"/></svg> Hesap gerekmez</span><span class="trust-sep"></span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20m-10-10h20"/></svg> 18 yaş ve üzeri</span><span class="trust-sep"></span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v5m0 3h.01"/></svg> Şikâyet & engelleme</span></div>
@@ -69,52 +69,32 @@
             <h2 id="setupTitle">Önce biraz<br><em>tanışalım.</em></h2>
             <p>İsim yok, fotoğraf yok. Sadece eşleşmeyi kolaylaştıracak birkaç bilgi.</p>
             <div class="aside-art" aria-hidden="true"><span class="art-orbit orbit-one"></span><span class="art-orbit orbit-two"></span><span class="art-center">✦</span><span class="art-chip chip-one">anonim</span><span class="art-chip chip-two">senin kuralların</span></div>
-            <div class="aside-tip"><span class="tip-icon">✳</span><div><strong>Kontrol sende.</strong><br>Filtrelerin ne kadar esnekse eşleşme ihtimalin o kadar artar.</div></div>
+            <div class="aside-tip"><span class="tip-icon">✳</span><div><strong>Kontrol sende.</strong><br>Sadece yaş ve cinsiyet seç. Gerisini konuşarak keşfet.</div></div>
           </aside>
           <form class="setup-form panel" id="matchForm" novalidate>
-            <div class="form-title-row"><div><div class="form-eyebrow" id="formModeLabel">SOHBET MODU</div><h3>Tercihlerini belirle</h3></div><span class="form-step">01 <span>/ 02</span></span></div>
+            <div class="form-title-row"><div><div class="form-eyebrow" id="formModeLabel">SOHBET MODU</div><h3>İki dakikada tanışmaya hazır ol</h3></div><span class="form-step">18+ <span>• ANONİM</span></span></div>
             <div class="form-section-title"><span class="section-num">01</span><span>Senin hakkında</span></div>
             <div class="form-fields">
               <label class="field"><span>Yaşın <b>*</b></span><input id="myAge" type="number" inputmode="numeric" min="18" max="99" placeholder="Örn. 24" required></label>
-              <label class="field"><span>Şehrin <b>*</b></span><select id="myCity" required><option value="">Şehir seç</option></select></label>
               <label class="field"><span>Cinsiyetin <b>*</b></span><select id="myGender" required><option value="">Seç</option></select></label>
-              <label class="field" id="orientationProfileField"><span>Yönelimin <b>*</b></span><select id="myOrientation" required><option value="">Seç</option></select></label>
-              <label class="field field-wide"><span>Eğitim durumun <b>*</b></span><select id="myEducation" required><option value="">Seç</option></select></label>
             </div>
-            <div class="form-section-title section-split"><span class="section-num">02</span><span>Karşımdaki kişi</span><span class="section-hint">Filtreler iki yönlü uygulanır</span></div>
-            <div class="field" id="genderPreferenceField"><span class="field-heading">Kimlerle eşleşmek istersin?</span><div id="genderChips" class="chip-group" role="group" aria-label="Eşleşmek istenen cinsiyetler"></div><small id="orientationHelp" class="chip-help" hidden>Date modunda karşılıklı cinsiyet tercihleri ve belirtilen yönelim birlikte değerlendirilir.</small></div>
+            <div class="form-section-title section-split"><span class="section-num">02</span><span>Karşımdaki kişi</span><span class="section-hint">İki tarafın tercihi dikkate alınır</span></div>
+            <div class="field" id="genderPreferenceField"><span class="field-heading">Kimlerle eşleşmek istersin?</span><div id="genderChips" class="chip-group" role="group" aria-label="Eşleşmek istenen cinsiyetler"></div></div>
             <div class="form-fields filters-fields">
               <label class="field"><span>Minimum yaş</span><input id="minAge" type="number" min="18" max="99" inputmode="numeric" value="18" required></label>
               <label class="field"><span>Maksimum yaş</span><input id="maxAge" type="number" min="18" max="99" inputmode="numeric" value="99" required></label>
-              <label class="field"><span>Şehir</span><select id="filterCity"><option value="Farketmez">Farketmez</option></select></label>
-              <label class="field"><span>Eğitim</span><select id="filterEducation"><option value="Farketmez">Farketmez</option></select></label>
-              <label class="field field-wide" id="orientationFilterField"><span>Yönelim</span><select id="filterOrientation"><option value="Farketmez">Farketmez</option></select></label>
             </div>
             <section class="gaming-section" id="gamingSection" hidden aria-labelledby="gameSectionTitle">
-              <div class="form-section-title section-split"><span class="section-num">03</span><span id="gameSectionTitle">Oyun ve oyuncu tercihleri</span><span class="section-hint">Aynı oyun • iki yönlü filtre</span></div>
+              <div class="form-section-title section-split"><span class="section-num">03</span><span id="gameSectionTitle">Oyun ve rank</span><span class="section-hint">Aynı oyun • karşılıklı rank tercihi</span></div>
               <div class="field"><span class="field-heading">Hangi oyunda duo arıyorsun? <b>*</b></span>
                 <div class="game-picker" id="gamePicker" role="group" aria-label="Oyun seçimi"></div>
-                <p class="gaming-hint">Oyun içi kullanıcı adını girmen gerekmiyor. Eşleşince istersen kendin paylaşırsın.</p>
+                <p class="gaming-hint">Oyun içi adını girmen gerekmiyor. Eşleşince istersen kendin paylaşırsın.</p>
               </div>
-              <h4 class="gaming-subhead">Senin oyun profilin</h4>
               <div class="form-fields game-fields">
-                <label class="field"><span>Rankın / seviyen <b>*</b></span><select id="myGameRank" required><option value="">Önce oyun seç</option></select></label>
-                <label class="field"><span>Oynadığın bölge <b>*</b></span><select id="myGameRegion" required></select></label>
-                <label class="field"><span>Platform <b>*</b></span><select id="myPlatform" required></select></label>
-                <label class="field"><span>Mikrofon <b>*</b></span><select id="myMic" required></select></label>
-                <label class="field"><span>Oyun tarzın <b>*</b></span><select id="myStyle" required></select></label>
-                <label class="field"><span>Genelde ne zaman oynarsın? <b>*</b></span><select id="myPlayTime" required></select></label>
+                <label class="field"><span>Senin rankın <b>*</b></span><select id="myGameRank" required><option value="">Önce oyun seç</option></select></label>
+                <label class="field"><span>Aradığın rank</span><select id="filterGameRank"><option value="Farketmez">Farketmez</option></select></label>
               </div>
-              <h4 class="gaming-subhead">Aradığın takım arkadaşı</h4>
-              <div class="form-fields game-fields">
-                <label class="field"><span>Rank tercihi</span><select id="filterGameRank"><option value="Farketmez">Farketmez</option></select></label>
-                <label class="field"><span>Bölge</span><select id="filterGameRegion"><option value="Farketmez">Farketmez</option></select></label>
-                <label class="field"><span>Platform</span><select id="filterPlatform"><option value="Farketmez">Farketmez</option></select></label>
-                <label class="field"><span>Mikrofon</span><select id="filterMic"><option value="Farketmez">Farketmez</option></select></label>
-                <label class="field"><span>Oyun tarzı</span><select id="filterStyle"><option value="Farketmez">Farketmez</option></select></label>
-                <label class="field"><span>Oynama zamanı</span><select id="filterPlayTime"><option value="Farketmez">Farketmez</option></select></label>
-              </div>
-              <p class="gaming-hint">Rank ve platform bilgileri kullanıcı beyanıdır; desteklenen platformlar oyundan oyuna değişebilir. Filtreleri esnek tutmak daha hızlı eşleşme sağlar.</p>
+              <p class="gaming-hint">Rank seçimi isteğe bağlı bir tercihtir. <strong>Farketmez</strong> seçersen aynı oyundaki tüm ranklardan biriyle eşleşebilirsin.</p>
             </section>
             <label class="consent-row"><input type="checkbox" id="ageConsent"><span>18 yaşından büyük olduğumu doğruluyorum. <button type="button" id="inlineRules">Topluluk kurallarını</button> okudum ve kabul ediyorum.</span></label>
             <div id="formError" class="form-error" role="alert" hidden></div>
@@ -130,10 +110,10 @@
         <div class="search-eyebrow"><span class="live-dot"></span> CANLI EŞLEŞME ARANIYOR</div>
         <div class="radar-art" aria-hidden="true"><div class="radar-ring ring-a"></div><div class="radar-ring ring-b"></div><div class="radar-ring ring-c"></div><div class="radar-sweep"></div><div class="radar-core"><span class="radar-spark">✦</span></div><span class="radar-point point-a"></span><span class="radar-point point-b"></span><span class="radar-point point-c"></span></div>
         <h2 id="searchTitle">Birileriyle yolların<br><span>kesişmek üzere...</span></h2>
-        <p class="search-description" id="searchDescription">Tercihlerine uygun anonim birini arıyoruz.</p>
+        <p class="search-description" id="searchDescription">Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.</p>
         <div class="search-summary" id="searchSummary"></div>
-        <p class="search-note" id="searchNote">Bekleme süresi, çevrimiçi kişi ve seçtiğin filtrelere bağlıdır.</p>
-        <div class="search-actions"><button type="button" class="ghost-button" id="editFilters">Filtreleri düzenle</button><button type="button" class="ghost-button stop-button" id="stopSearching">Aramayı durdur</button></div>
+        <p class="search-note" id="searchNote">Bekleme süresi o anda çevrimiçi kişilere bağlıdır.</p>
+        <div class="search-actions"><button type="button" class="ghost-button" id="editFilters">Tercihleri düzenle</button><button type="button" class="ghost-button stop-button" id="stopSearching">Aramayı durdur</button></div>
       </div>
     </section>
 
