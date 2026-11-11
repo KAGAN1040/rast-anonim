@@ -5,10 +5,10 @@ Gerçek zamanlı, **18+**, mobil ve masaüstü uyumlu, hesap açmadan çalışan
 ## Özellikler
 
 - **Üç ayrı eşleşme modu:** Sohbet Et / Date Bul / Duo Bul; farklı modlardaki kişiler birbirine bağlanmaz.
-- **Karşılıklı filtreleme:** Her iki tarafın yaş aralığı, cinsiyet tercihleri, şehir, eğitim ve yönelim tercihlerinin uyduğu kullanıcılar eşleştirilir. Her filtre ayrı ayrı isteğe bağlı esnetilebilir; Date modunda açık heteroseksüel/eşcinsel yönelim beyanları da ikili cinsiyet eşleşmesinde dikkate alınır.
+- **Karşılıklı filtreleme:** Üç modda da yalnızca yaş aralığı ve cinsiyet tercihi kullanılır. İki tarafın tercihleri karşılıklı uyduğunda eşleşme başlar. Şehir, eğitim ve yönelim istenmez.
 - **DUO BUL oyun listesi (10):** League of Legends, VALORANT, Counter-Strike 2, Fortnite, PUBG: BATTLEGROUNDS, Minecraft, Roblox, Apex Legends, Rocket League, Rainbow Six Siege.
-- **Oyun eşleşmesi:** Kullanıcılar **aynı oyunu seçmişse** eşleşir; iki tarafın **rank, bölge, platform, mikrofon, oyun tarzı, oynama zamanı** filtreleri karşılıklı kontrol edilir. Rank listesi seçili oyuna göre değişir (Minecraft ve Roblox için "Derece yok"). "Farketmez" esnek filtrelemeyi sağlar.
-- **Duo eşleşmesinde gizlilik:** Oyun içi ad, Discord veya kullanıcı adı istenmez; eşleşenler isterlerse sohbet sırasında paylaşır. Duo ekranında yönelim alanları gizlenir ve bu bilgi eşleşmede kullanılmaz. Platform ve rank bilgileri kullanıcı beyanıdır.
+- **Oyun eşleşmesi:** Kullanıcılar **aynı oyunu seçmişse** eşleşir; iki tarafın seçtiği **rank tercihi** karşılıklı kontrol edilir. Rank listesi seçili oyuna göre değişir (Minecraft ve Roblox için "Derece yok"). "Farketmez" her rankla eşleşmeyi sağlar.
+- **Duo eşleşmesinde gizlilik:** Oyun içi ad, Discord veya kullanıcı adı istenmez; eşleşenler isterlerse sohbet sırasında paylaşır. Üç modda da yaş/cinsiyet tercihleri aynıdır. Rank bilgisi kullanıcı beyanıdır.
 - **Anonim profil:** İsim, fotoğraf, telefon, e-posta ve üyelik yok. Takma adlar otomatik oluşturulur. Girişte 18+ onayı istenir.
 - **Anlık mesajlar:** Socket.IO üzerinden mesajlaşma, yazıyor göstergesi, 500 karakter limiti.
 - **Sonraki kişi / ayrıl / engelle:** Aynı iki oturum, sonraki 15 dakika boyunca tekrar eşleştirilmez.
@@ -21,7 +21,7 @@ Gerçek zamanlı, **18+**, mobil ve masaüstü uyumlu, hesap açmadan çalışan
 1. Bu ZIP'i aç. Klasörün içindeki **tüm dosyaları** (özellikle `server.js`, `package.json`, `render.yaml`, `shared.js`, `public/`) yeni bir **GitHub repository**'sinin kök dizinine yükle. `.env` içeriğini GitHub'a koyma.
 2. [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprint** → GitHub reposunu bağla → **Apply**. `render.yaml` web servisini oluşturur; `ADMIN_TOKEN` ve `REPORT_SALT` otomatik üretilir.
 3. Deploy bitince Render sana `https://...onrender.com` adresini verir. Bu adrese girerek siteyi açabilirsin.
-4. Test için bağlantıyı iki ayrı tarayıcıda veya telefon + bilgisayarda aç. Her iki tarafta da aynı modu seçip **karşılıklı uyumlu filtreler** belirle. Duo testi için iki tarafta aynı oyunu seç ve rank/bölge/platform/mikrofon tercihlerinin birbiriyle uyumlu olduğundan emin ol. Eşleşip sohbet edebilirsiniz.
+4. Test için bağlantıyı iki ayrı tarayıcıda veya telefon + bilgisayarda aç. Her iki tarafta da aynı modu seçip **karşılıklı uyumlu filtreler** belirle. Duo testi için iki tarafta aynı oyunu seç ve rank tercihlerinin birbiriyle uyumlu olduğundan emin ol. Eşleşip sohbet edebilirsiniz.
 5. Şikâyetleri görmek için `https://...onrender.com/admin` sayfasını aç. Render Dashboard → Service → **Environment** altında görünen `ADMIN_TOKEN` değerini gir.
 
 **Alternatif manuel kurulum:** Render → **New Web Service** → GitHub repo → `Runtime: Node`; Build Command: `npm install --omit=dev --no-audit --no-fund`; Start Command: `npm start`; Health Check Path: `/api/health`. Environment bölümünden uzun ve tahmin edilmesi zor bir `ADMIN_TOKEN` ile `REPORT_SALT` ekle.
