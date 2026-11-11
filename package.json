@@ -1,0 +1,22 @@
+{
+  "name": "rast-anonim",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Anonim, filtreli gerçek zamanlı sohbet ve karşılıklı eşleşme uygulaması",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.3",
+    "socket.io": "^4.8.1"
+  }
+}
