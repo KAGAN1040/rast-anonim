@@ -4,7 +4,7 @@
   const socket = io({ reconnection: true, reconnectionDelay: 600, reconnectionDelayMax: 4500, timeout: 9000 });
   const $ = id => document.getElementById(id);
   const pages = ['landing', 'setup', 'search', 'chat', 'ended'];
-  const state = { mode: 'chat', view: 'landing', spec: null, peer: null, preferred: new Set(D.genders), preferredTouched: false, selectedGame: null, searchingSince: 0, typingTimeout: null, searchTimeout: null, toastTimeout: null, lastTyping: 0 };
+  const state = { mode: 'chat', view: 'landing', spec: null, peer: null, preferred: new Set(D.genders), selectedGame: null, searchingSince: 0, typingTimeout: null, searchTimeout: null, toastTimeout: null, lastTyping: 0 };
 
   function showView(view) {
     state.view = view;
@@ -27,17 +27,7 @@
       $(id).append(option);
     }
   }
-  setOptions('myCity', D.cities); setOptions('filterCity', D.cities);
-  setOptions('myGender', D.genders); setOptions('myOrientation', D.orientations);
-  setOptions('myEducation', D.educations); setOptions('filterEducation', D.educations);
-  setOptions('filterOrientation', D.orientations); setOptions('reportReason', D.reasons);
-  setOptions('myGameRegion', D.regions); setOptions('filterGameRegion', D.regions);
-  setOptions('myPlatform', D.platforms); setOptions('filterPlatform', D.platforms);
-  setOptions('myMic', D.microphones); setOptions('filterMic', D.microphones);
-  setOptions('myStyle', D.gameStyles); setOptions('filterStyle', D.gameStyles.filter(v => v !== 'Her ikisi'));
-  setOptions('myPlayTime', D.playTimes); setOptions('filterPlayTime', D.playTimes.filter(v => v !== 'Esnek'));
-  $('myGameRegion').value = 'Türkiye'; $('myPlatform').value = 'PC';
-  $('myMic').value = 'Var'; $('myStyle').value = 'Rahat'; $('myPlayTime').value = 'Şimdi';
+  setOptions('myGender', D.genders); setOptions('reportReason', D.reasons);
   $('year').textContent = new Date().getFullYear();
 
   function gameName(id) { return D.games.find(g => g.id === id)?.name || id; }
@@ -82,7 +72,6 @@
       btn.textContent = gender;
       btn.addEventListener('click', () => {
         if (state.preferred.has(gender) && state.preferred.size === 1) { toast('En az bir cinsiyet seçmelisin.'); return; }
-        state.preferredTouched = true;
         state.preferred.has(gender) ? state.preferred.delete(gender) : state.preferred.add(gender);
         renderChips();
       });
@@ -90,29 +79,10 @@
     });
   }
   renderChips();
-  function suggestGenders() {
-    if (state.mode !== 'date' || state.preferredTouched) return;
-    const gender = $('myGender').value, orientation = $('myOrientation').value;
-    if (!['Kadın', 'Erkek'].includes(gender)) return;
-    if (orientation === 'Heteroseksüel') state.preferred = new Set([gender === 'Kadın' ? 'Erkek' : 'Kadın']);
-    else if (orientation === 'Eşcinsel') state.preferred = new Set([gender]);
-    else if (orientation === 'Biseksüel' || orientation === 'Panseksüel') state.preferred = new Set(D.genders);
-    renderChips();
-  }
-  $('myGender').addEventListener('change', suggestGenders);
-  $('myOrientation').addEventListener('change', suggestGenders);
-
   function openMode(mode) {
     state.mode = mode;
-    state.preferred = new Set(D.genders); state.preferredTouched = false; renderChips(); suggestGenders();
-    const gameMode = mode === 'game';
-    $('orientationHelp').hidden = mode !== 'date';
-    $('orientationProfileField').hidden = gameMode;
-    $('orientationFilterField').hidden = gameMode;
-    $('genderPreferenceField').hidden = gameMode;
-    $('gamingSection').hidden = !gameMode;
-    document.querySelector('.form-step').innerHTML = gameMode ? '01 <span>/ 03</span>' : '01 <span>/ 02</span>';
-    $('myOrientation').required = !gameMode;
+    state.preferred = new Set(D.genders); renderChips();
+    $('gamingSection').hidden = mode !== 'game';
     $('formModeLabel').textContent = mode === 'chat' ? 'SOHBET MODU' : mode === 'date' ? 'DATE MODU' : 'DUO MODU';
     $('setupTitle').innerHTML = mode === 'chat' ? 'Önce biraz<br><em>tanışalım.</em>' : mode === 'date' ? 'Belki de bir<br><em>kıvılcım.</em>' : 'Takım arkadaşı<br><em>bulalım.</em>';
     $('startSearchBtn').querySelector('span').textContent = mode === 'chat' ? 'Sohbet arkadaşı bul' : mode === 'date' ? 'Date eşleşmesi bul' : 'Oyun arkadaşı bul';
@@ -143,28 +113,14 @@
     return {
       mode: state.mode,
       acceptedRules: $('ageConsent').checked,
-      profile: {
-        age: Number($('myAge').value), city: $('myCity').value, education: $('myEducation').value,
-        gender: $('myGender').value,
-        orientation: state.mode === 'game' ? 'Belirtmek istemiyorum' : $('myOrientation').value
-      },
+      profile: { age: Number($('myAge').value), gender: $('myGender').value },
       filters: {
         minAge: Number($('minAge').value), maxAge: Number($('maxAge').value),
-        city: $('filterCity').value, education: $('filterEducation').value,
-        orientation: state.mode === 'game' ? D.any : $('filterOrientation').value,
-        genders: state.mode === 'game' ? [...D.genders] : D.genders.filter(g => state.preferred.has(g))
+        genders: D.genders.filter(g => state.preferred.has(g))
       },
       ...(state.mode === 'game' ? {
-        game: {
-          id: state.selectedGame, rank: $('myGameRank').value,
-          region: $('myGameRegion').value, platform: $('myPlatform').value,
-          microphone: $('myMic').value, style: $('myStyle').value, time: $('myPlayTime').value
-        },
-        gameFilters: {
-          rank: $('filterGameRank').value, region: $('filterGameRegion').value,
-          platform: $('filterPlatform').value, microphone: $('filterMic').value,
-          style: $('filterStyle').value, time: $('filterPlayTime').value
-        }
+        game: { id: state.selectedGame, rank: $('myGameRank').value },
+        gameFilters: { rank: $('filterGameRank').value }
       } : {})
     };
   }
@@ -181,29 +137,24 @@
     const { filters, mode } = state.spec;
     $('searchSummary').replaceChildren();
     const parts = [mode === 'game' ? '🎮 Duo · ' + gameName(state.spec.game.id) : mode === 'chat' ? '💬 Sohbet' : '♥ Date', `${filters.minAge}–${filters.maxAge} yaş`];
+    if (filters.genders.length < D.genders.length) parts.push(filters.genders.join(', '));
     if (mode === 'game') {
-      parts.push('Rank: ' + state.spec.game.rank);
-      parts.push(state.spec.game.region);
-      if (state.spec.gameFilters.rank !== D.any) parts.push('Aranan rank: ' + state.spec.gameFilters.rank);
-      if (state.spec.gameFilters.microphone !== D.any) parts.push('Mikrofon: ' + state.spec.gameFilters.microphone);
+      parts.push('Rankın: ' + state.spec.game.rank);
+      if (state.spec.gameFilters.rank !== D.any) parts.push('Aradığın rank: ' + state.spec.gameFilters.rank);
     }
-    if (filters.city !== D.any) parts.push(filters.city);
-    if (filters.education !== D.any) parts.push(filters.education);
-    if (mode !== 'game' && filters.orientation !== D.any) parts.push(filters.orientation);
-    if (mode !== 'game' && filters.genders.length < D.genders.length) parts.push(filters.genders.join(', '));
     parts.forEach(part => { const span = document.createElement('span'); span.textContent = part; $('searchSummary').append(span); });
   }
   function startFromSpec(skipServer = false) {
     if (!state.spec) { showView('setup'); return; }
     state.peer = null;
-    $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Karşılıklı tercihlere uygun birini arıyoruz.' : 'Tercihlerine uygun anonim birini arıyoruz.';
+    $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.' : 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.';
     $('searchTitle').innerHTML = 'Birileriyle yolların<br><span>kesişmek üzere...</span>';
-    $('searchNote').textContent = 'Bekleme süresi, çevrimiçi kişi ve seçtiğin filtrelere bağlıdır.';
+    $('searchNote').textContent = 'Bekleme süresi, çevrimiçi kişi sayısına bağlıdır.';
     state.searchingSince = Date.now();
     fillSearchSummary();
     showView('search');
     state.searchTimeout = setTimeout(() => {
-      if (state.view === 'search') $('searchNote').textContent = 'Henüz uygun biri bulunamadı. Daha geniş filtrelerle eşleşme şansını artırabilirsin.';
+      if (state.view === 'search') $('searchNote').textContent = 'Henüz uygun biri bulunamadı. Aramaya devam ediyoruz; istersen yaş ve cinsiyet tercihlerini genişletebilirsin.';
     }, 20000);
     if (!skipServer) sendSearch();
   }
@@ -213,7 +164,7 @@
     const valid = D.validate(spec);
     let error = '';
     if (!spec.acceptedRules) error = 'Devam etmek için 18+ onayını ve kuralları kabul etmelisin.';
-    else if (!valid) error = 'Tüm bilgilerini ve yaş aralığını kontrol et. Yaş en az 18 olmalı.';
+    else if (!valid) error = 'Yaşını, cinsiyetini ve tercihlerini kontrol et. Yaş en az 18 olmalı. Duo için oyun ve rank da seçmelisin.';
     if (error) { $('formError').textContent = error; $('formError').hidden = false; return; }
     $('formError').hidden = true;
     state.spec = spec;
@@ -235,16 +186,8 @@
     $('chatPartnerName').textContent = data.alias;
     $('partnerInitial').textContent = '✦';
     $('chatModeText').textContent = modeName(data.mode);
-    const facts = [fact('Yaş', `${data.profile.age}`), fact('Şehir', data.profile.city)];
-    if (data.mode === 'game' && data.game) {
-      facts.push(fact('Oyun', gameName(data.game.id)), fact('Rank', data.game.rank),
-        fact('Bölge', data.game.region), fact('Platform', data.game.platform),
-        fact('Mikrofon', data.game.microphone), fact('Tarz', data.game.style),
-        fact('Zaman', data.game.time));
-    } else {
-      facts.push(fact('Cinsiyet', data.profile.gender), fact('Yönelim', data.profile.orientation));
-    }
-    facts.push(fact('Eğitim', data.profile.education));
+    const facts = [fact('Yaş', `${data.profile.age}`), fact('Cinsiyet', data.profile.gender)];
+    if (data.mode === 'game' && data.game) facts.push(fact('Oyun', gameName(data.game.id)), fact('Rank', data.game.rank));
     $('partnerFacts').replaceChildren(...facts);
     $('typingStatus').textContent = `Anonim bağlantı • ${modeName(data.mode)}`;
     $('typingStatus').classList.remove('is-typing');
@@ -255,7 +198,7 @@
     const heading = document.createElement('strong'); heading.textContent = data.mode === 'game' ? 'Duo bulundu! 🎮' : 'Yeni bir bağlantı!';
     const p = document.createElement('p'); p.textContent = data.mode === 'game' ? 'Oyun arkadaşınla tanış! Oyun içi adını yalnızca istersen paylaş.' : 'İkiniz de anonim kalıyorsunuz. İlk mesajı göndermeye ne dersin?';
     const summary = document.createElement('p'); summary.className = 'chat-match-summary';
-    summary.textContent = data.mode === 'game' && data.game ? `${gameName(data.game.id)} · ${data.game.rank} · ${data.game.region} · ${data.game.platform} · Mikrofon ${data.game.microphone.toLowerCase()}` : `${data.profile.age} yaş · ${data.profile.city} · ${data.profile.gender} · ${data.profile.education}`;
+    summary.textContent = data.mode === 'game' && data.game ? `${gameName(data.game.id)} · ${data.game.rank}` : `${data.profile.age} yaş · ${data.profile.gender}`;
     intro.append(emblem, heading, p, summary); $('messageList').append(intro);
     showView('chat');
     toast(data.mode === 'game' ? 'Duo bulundu! İyi oyunlar 🎮' : 'Eşleştin! İyi sohbetler ✨');
@@ -358,7 +301,7 @@
     $('onlineHeader').textContent = typeof stats.online === 'number' ? stats.online : '0';
   });
   socket.on('match:searching', () => {
-    if (state.view === 'search') $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Karşılıklı tercihlere uygun birini arıyoruz.' : 'Tercihlerine uygun anonim birini arıyoruz.';
+    if (state.view === 'search') $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.' : 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.';
   });
   socket.on('match:found', renderMatch);
   socket.on('match:ended', evt => {
