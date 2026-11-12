@@ -121,3 +121,61 @@ test('same-origin ve proxy host izinli, başka origin yasak', () => {
   assert.equal(allow({headers:{origin:'https://evil.example',host:'rast.example'}}), false);
   assert.equal(allow({headers:{origin:'null',host:'rast.example'}}), false);
 });
+
+
+test('kademeli eşleşme: yaş aralığı 30 saniye sonra kademeli genişler', () => {
+  const a = io.connect('staged-age-a'), b = io.connect('staged-age-b');
+  ask(a, 'match:start', spec('chat', 'Erkek', ['Kadın'], 26, { minAge: 22, maxAge: 24 }));
+  ask(b, 'match:start', spec('chat', 'Kadın', ['Erkek'], 28, { minAge: 20, maxAge: 30 }));
+  const sa = server.clients.get(a.id), sb = server.clients.get(b.id);
+  sa.searchingSince = Date.now() - 29000; sb.searchingSince = Date.now() - 29000;
+  server.runMatchmaking();
+  assert.equal(sa.status, 'searching');
+  sa.searchingSince = Date.now() - 31000; sb.searchingSince = Date.now() - 31000;
+  server.runMatchmaking();
+  assert.equal(sa.status, 'chatting');
+  assert.deepEqual(a.seen('match:found')[0].payload.fit, { exact: false, reasons: ['Yaş aralığın dışında'] });
+  assert.deepEqual(b.seen('match:found')[0].payload.fit, { exact: true, reasons: [] });
+  ask(a, 'match:cancel', {});
+});
+
+test('en yakın aday yaş farkı iki yönlü ölçülerek seçilir', () => {
+  const a = io.connect('closest-a'), b = io.connect('closest-b'), c = io.connect('closest-c');
+  ask(a, 'match:start', spec('chat', 'Erkek', ['Kadın'], 28, { minAge: 24, maxAge: 27 }));
+  ask(b, 'match:start', spec('chat', 'Kadın', ['Erkek'], 29, { minAge: 18, maxAge: 35 }));
+  ask(c, 'match:start', spec('chat', 'Kadın', ['Erkek'], 28, { minAge: 30, maxAge: 35 }));
+  const now = Date.now();
+  for (const s of [a,b,c]) server.clients.get(s.id).searchingSince = now - 31000;
+  server.runMatchmaking(now);
+  assert.equal(server.clients.get(a.id).partner, b.id);
+  ask(a, 'match:cancel', {}); ask(c, 'match:cancel', {});
+});
+
+test('cinsiyet tercihi yalnızca iki taraf da yeterince beklediğinde gevşer', () => {
+  const a = io.connect('gender-a'), b = io.connect('gender-b');
+  ask(a, 'match:start', spec('chat', 'Erkek', ['Kadın'], 25));
+  ask(b, 'match:start', spec('chat', 'Kadın', ['Kadın'], 25));
+  const sa = server.clients.get(a.id), sb = server.clients.get(b.id);
+  sa.searchingSince = Date.now() - 51000;
+  server.runMatchmaking();
+  assert.equal(sa.status, 'searching');
+  sb.searchingSince = Date.now() - 51000;
+  server.runMatchmaking();
+  assert.equal(sa.status, 'chatting');
+  assert.deepEqual(b.seen('match:found')[0].payload.fit.reasons, ['Cinsiyet tercihin dışında']);
+  ask(a, 'match:cancel', {});
+});
+
+test('farklı oyunlar 75 saniye sonra da eşleşmez', () => {
+  const a = io.connect('game-hard-a'), b = io.connect('game-hard-b');
+  ask(a, 'match:start', gameSpec('cs2', 'Derecesiz'));
+  ask(b, 'match:start', gameSpec('valorant', 'Altın'));
+  const now = Date.now();
+  server.clients.get(a.id).searchingSince = now - 80000;
+  server.clients.get(b.id).searchingSince = now - 80000;
+  server.runMatchmaking(now);
+  assert.equal(server.clients.get(a.id).status, 'searching');
+  assert.equal(server.clients.get(b.id).status, 'searching');
+  assert.equal(a.seen('match:stage').at(-1).payload.stage, 4);
+  ask(a, 'match:cancel', {}); ask(b, 'match:cancel', {});
+});
