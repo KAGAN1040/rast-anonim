@@ -62,3 +62,8 @@
 @media (max-width:900px){.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mode-card{padding:24px;min-height:310px}.mode-game{grid-column:1/-1;min-height:225px}.mode-game .card-orb{margin-bottom:12px}.mode-game .mode-desc{max-width:630px}}
 @media (max-width:640px){.mode-grid{grid-template-columns:1fr;gap:13px}.mode-card,.mode-game{grid-column:auto;min-height:235px;padding:21px 23px 17px}.mode-heading{font-size:26px}.mode-card .card-orb{margin-bottom:14px}.game-tile{min-height:52px;padding:9px 7px;gap:7px}.game-symbol{width:32px;height:32px;font-size:9px}.game-title{font-size:10.5px}}
 @media (max-width:375px){.game-picker{grid-template-columns:1fr}.game-title{font-size:12px}}
+
+/* Ağ durumunu tüm tarayıcılarda görünür kıl. */
+.connection-status{font-size:11px;font-weight:700;color:#ffb5ae;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+.connection-status.is-online{color:#80e6bc}
+@media(max-width:640px){.connection-status{font-size:9px;max-width:112px}}
