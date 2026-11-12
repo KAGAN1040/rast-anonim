@@ -190,7 +190,7 @@
       } else if (result.status === 'searching') {
         clearTimeout(state.retryTimer);
         state.retryCount = 0;
-        $('searchDescription').textContent = 'Bağlantı kuruldu. Uygun biri aranıyor...';
+        $('searchDescription').textContent = 'Bağlantı kuruldu. Önce filtrelerine tam uyan biri aranıyor...';
       } else {
         sendSearch();
       }
@@ -214,12 +214,12 @@
     clearTimeout(state.retryTimer);
     $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.' : 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.';
     $('searchTitle').innerHTML = 'Birileriyle yolların<br><span>kesişmek üzere...</span>';
-    $('searchNote').textContent = 'Bekleme süresi, çevrimiçi kişi sayısına bağlıdır.';
+    $('searchNote').textContent = 'Önce tam uyumlu kişi aranır; bekledikçe arama otomatik ve kademeli genişler.';
     state.searchingSince = Date.now();
     fillSearchSummary();
     showView('search');
     state.searchTimeout = setTimeout(() => {
-      if (state.view === 'search') $('searchNote').textContent = 'Henüz uygun biri bulunamadı. Aramaya devam ediyoruz; istersen yaş ve cinsiyet tercihlerini genişletebilirsin.';
+      if (state.view === 'search') $('searchNote').textContent = 'Henüz tam uygun biri yok. Aramayı otomatik genişletiyoruz; en yakın eşleşmeye öncelik verilecek.';
     }, 20000);
     if (!skipServer) sendSearch();
   }
@@ -264,6 +264,12 @@
     const p = document.createElement('p'); p.textContent = data.mode === 'game' ? 'Oyun arkadaşınla tanış! Oyun içi adını yalnızca istersen paylaş.' : 'İkiniz de anonim kalıyorsunuz. İlk mesajı göndermeye ne dersin?';
     const summary = document.createElement('p'); summary.className = 'chat-match-summary';
     summary.textContent = data.mode === 'game' && data.game ? `${gameName(data.game.id)} · ${data.game.rank}` : `${data.profile.age} yaş · ${data.profile.gender}`;
+    if (data.fit && !data.fit.exact) {
+      const note = document.createElement('p');
+      note.className = 'chat-match-warning';
+      note.textContent = 'Filtrelerine en yakın kişi bulundu; tam uyuşmayan tercihler: ' + data.fit.reasons.join(', ') + '. İstersen sonraki kişiye geçebilirsin.';
+      intro.append(note);
+    }
     intro.append(emblem, heading, p, summary); $('messageList').append(intro);
     showView('chat');
     toast(data.mode === 'game' ? 'Duo bulundu! İyi oyunlar 🎮' : 'Eşleştin! İyi sohbetler ✨');
@@ -374,6 +380,10 @@
   });
   socket.on('match:searching', () => {
     if (state.view === 'search') $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.' : 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.';
+  });
+  socket.on('match:stage', info => {
+    if (state.view !== 'search') return;
+    if (info && typeof info.message === 'string') $('searchDescription').textContent = info.message;
   });
   socket.on('match:found', renderMatch);
   socket.on('match:ended', evt => {
