@@ -67,3 +67,5 @@
 .connection-status{font-size:11px;font-weight:700;color:#ffb5ae;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis}
 .connection-status.is-online{color:#80e6bc}
 @media(max-width:640px){.connection-status{font-size:9px;max-width:112px}}
+
+.chat-match-warning{color:#ffda8b!important;font-weight:700;background:rgba(244,174,68,.09);border:1px solid rgba(255,206,119,.32);border-radius:12px;padding:10px 12px}
