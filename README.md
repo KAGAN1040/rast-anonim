@@ -5,9 +5,9 @@ Gerçek zamanlı, **18+**, mobil ve masaüstü uyumlu, hesap açmadan çalışan
 ## Özellikler
 
 - **Üç ayrı eşleşme modu:** Sohbet Et / Date Bul / Duo Bul; farklı modlardaki kişiler birbirine bağlanmaz.
-- **Karşılıklı filtreleme:** Üç modda da yalnızca yaş aralığı ve cinsiyet tercihi kullanılır. İki tarafın tercihleri karşılıklı uyduğunda eşleşme başlar. Şehir, eğitim ve yönelim istenmez.
+- **Kademeli eşleşme:** Önce iki tarafın yaş/cinsiyet filtrelerine tam uyan kişiler eşleşir. Her iki kişi de yeterince uzun süre beklerse sırasıyla 15, 30, 50 ve 75. saniyeden sonra filtreler kademeli gevşetilir. En yakın uygun aday önceliklidir. Filtre dışı eşleşme iki tarafa da bildirilir. Şehir, eğitim ve yönelim istenmez.
 - **DUO BUL oyun listesi (10):** League of Legends, VALORANT, Counter-Strike 2, Fortnite, PUBG: BATTLEGROUNDS, Minecraft, Roblox, Apex Legends, Rocket League, Rainbow Six Siege.
-- **Oyun eşleşmesi:** Kullanıcılar **aynı oyunu seçmişse** eşleşir; iki tarafın seçtiği **rank tercihi** karşılıklı kontrol edilir. Rank listesi seçili oyuna göre değişir (Minecraft ve Roblox için "Derece yok"). "Farketmez" her rankla eşleşmeyi sağlar.
+- **Oyun eşleşmesi:** Kullanıcılar **aynı oyunu seçmişse** eşleşir; önce iki tarafın seçtiği **rank tercihi** karşılıklı kontrol edilir, uzun bekleyişte rank aralığı kademeli gevşetilir. Rank listesi seçili oyuna göre değişir (Minecraft ve Roblox için "Derece yok"). "Farketmez" her rankla eşleşmeyi sağlar.
 - **Duo eşleşmesinde gizlilik:** Oyun içi ad, Discord veya kullanıcı adı istenmez; eşleşenler isterlerse sohbet sırasında paylaşır. Üç modda da yaş/cinsiyet tercihleri aynıdır. Rank bilgisi kullanıcı beyanıdır.
 - **Anonim profil:** İsim, fotoğraf, telefon, e-posta ve üyelik yok. Takma adlar otomatik oluşturulur. Girişte 18+ onayı istenir.
 - **Anlık mesajlar:** Socket.IO üzerinden mesajlaşma, yazıyor göstergesi, 500 karakter limiti.
@@ -83,7 +83,8 @@ npm test
 ```text
 rast-anonim/
 ├── server.js          # Node/Express/Socket.IO gerçek zamanlı backend
-├── shared.js          # Filtre veri/validasyon/eşleşme kuralları
+├── shared.js          # Filtre veri/validasyon kuralları
+├── matchmaking.js     # Kademeli, karşılıklı yakınlık temelli eşleşme
 ├── public/
 │   ├── index.html     # Arayüz
 │   ├── style.css      # Responsive tasarım/animasyonlar
