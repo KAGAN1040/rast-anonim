@@ -1,10 +1,20 @@
 (() => {
   'use strict';
   const D = window.RAST_DATA;
-  const socket = io({ reconnection: true, reconnectionDelay: 600, reconnectionDelayMax: 4500, timeout: 9000 });
+  const statusEl = document.getElementById('connectionStatus');
+  if (!D || typeof window.io !== 'function') {
+    if (statusEl) statusEl.textContent = 'Bağlantı dosyaları yüklenemedi. Sayfayı yenile.';
+    return;
+  }
+  // Polling, WebSocket'i engelleyen tarayıcı ve ağlarda yedek bağlantıdır.
+  const socket = io({
+    transports: ['polling', 'websocket'], upgrade: true, tryAllTransports: true,
+    reconnection: true, reconnectionAttempts: Infinity,
+    reconnectionDelay: 800, reconnectionDelayMax: 6500, timeout: 15000
+  });
   const $ = id => document.getElementById(id);
   const pages = ['landing', 'setup', 'search', 'chat', 'ended'];
-  const state = { mode: 'chat', view: 'landing', spec: null, peer: null, preferred: new Set(D.genders), selectedGame: null, searchingSince: 0, typingTimeout: null, searchTimeout: null, toastTimeout: null, lastTyping: 0 };
+  const state = { mode: 'chat', view: 'landing', spec: null, peer: null, preferred: new Set(D.genders), selectedGame: null, searchingSince: 0, typingTimeout: null, searchTimeout: null, retryTimer: null, searchInFlight: false, retryCount: 0, toastTimeout: null, lastTyping: 0 };
 
   function showView(view) {
     state.view = view;
@@ -12,9 +22,19 @@
       const el = $(id); const current = id === view;
       el.hidden = !current; el.classList.toggle('active', current);
     });
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
     if (view === 'chat') setTimeout(() => $('messageInput').focus({ preventScroll: true }), 180);
-    if (view !== 'search') clearTimeout(state.searchTimeout);
+    if (view !== 'search') {
+      clearTimeout(state.searchTimeout);
+      clearTimeout(state.retryTimer);
+      state.retryCount = 0;
+    }
+  }
+  function updateConnection(connected, message) {
+    if (!statusEl) return;
+    statusEl.classList.toggle('is-online', connected);
+    statusEl.textContent = message || (connected ? 'Bağlı' : 'Bağlanıyor...');
+    statusEl.title = connected ? 'Canlı sunucu bağlantısı kuruldu' : 'Sunucuyla bağlantı kurulamadı';
   }
   function toast(message) {
     const el = $('toast'); el.textContent = message; el.classList.add('show');
@@ -124,13 +144,56 @@
       } : {})
     };
   }
+  function scheduleSearchRecovery() {
+    if (state.view !== 'search') return;
+    clearTimeout(state.retryTimer);
+    state.retryCount += 1;
+    state.retryTimer = setTimeout(recoverSearch, Math.min(13000, 2200 * state.retryCount));
+  }
   function sendSearch() {
-    if (!socket.connected) { $('searchDescription').textContent = 'Sunucuya bağlanılıyor...'; return; }
-    if (!state.spec) return;
-    socket.timeout(8000).emit('match:start', state.spec, (err, result) => {
+    if (state.view !== 'search' || !state.spec || state.searchInFlight) return;
+    if (!socket.connected) {
+      $('searchDescription').textContent = 'Sunucuya bağlanılıyor... Bağlantı kurulunca arama başlayacak.';
+      return;
+    }
+    state.searchInFlight = true;
+    socket.timeout(9500).emit('match:start', state.spec, (err, result) => {
+      state.searchInFlight = false;
       if (state.view !== 'search') return;
-      if (err) { $('searchDescription').textContent = 'Bağlantı yanıt vermiyor. Yeniden deneniyor...'; return; }
-      if (!result?.ok) { toast(result?.error || 'Eşleşme başlatılamadı.'); showView('setup'); }
+      if (err) {
+        $('searchDescription').textContent = 'Sunucu yanıt vermedi; bağlantı kontrol edilip tekrar denenecek.';
+        scheduleSearchRecovery();
+      } else if (!result?.ok) {
+        toast(result?.error || 'Eşleşme başlatılamadı.');
+        showView('setup');
+      } else {
+        state.retryCount = 0;
+        clearTimeout(state.retryTimer);
+        // Eşleşme olayı kaybolursa sohbet durumunu kurtar.
+        state.retryTimer = setTimeout(recoverSearch, 5000);
+      }
+    });
+  }
+  function recoverSearch() {
+    if (state.view !== 'search' || !state.spec) return;
+    if (!socket.connected) {
+      $('searchDescription').textContent = 'Bağlantı bekleniyor; internet bağlantını kontrol et.';
+      return;
+    }
+    socket.timeout(6500).emit('match:status', {}, (err, result) => {
+      if (state.view !== 'search') return;
+      if (err || !result?.ok) {
+        $('searchDescription').textContent = 'Sunucuya erişim deneniyor...';
+        scheduleSearchRecovery();
+      } else if (result.status === 'chatting' && result.peer) {
+        renderMatch(result.peer);
+      } else if (result.status === 'searching') {
+        clearTimeout(state.retryTimer);
+        state.retryCount = 0;
+        $('searchDescription').textContent = 'Bağlantı kuruldu. Uygun biri aranıyor...';
+      } else {
+        sendSearch();
+      }
     });
   }
   function fillSearchSummary() {
@@ -147,6 +210,8 @@
   function startFromSpec(skipServer = false) {
     if (!state.spec) { showView('setup'); return; }
     state.peer = null;
+    state.searchInFlight = false;
+    clearTimeout(state.retryTimer);
     $('searchDescription').textContent = state.mode === 'game' ? gameName(state.spec.game.id) + ' için uygun bir duo arıyoruz.' : state.mode === 'date' ? 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.' : 'Yaş ve cinsiyet tercihlerine uygun birini arıyoruz.';
     $('searchTitle').innerHTML = 'Birileriyle yolların<br><span>kesişmek üzere...</span>';
     $('searchNote').textContent = 'Bekleme süresi, çevrimiçi kişi sayısına bağlıdır.';
@@ -291,11 +356,18 @@
   });
 
   socket.on('connect', () => {
-    if (state.view === 'search') sendSearch();
+    updateConnection(true);
+    if (state.view === 'search') recoverSearch();
+  });
+  socket.on('connect_error', () => {
+    updateConnection(false, 'Sunucuya ulaşılamıyor');
+    if (state.view === 'search') $('searchDescription').textContent = 'Sunucuya ulaşılamıyor. İnternet bağlantını kontrol et, otomatik yeniden deniyoruz.';
   });
   socket.on('disconnect', () => {
+    updateConnection(false, 'Bağlantı kesildi');
     if (state.view === 'chat') setEnded('Bağlantı koptu.', 'Sohbet oturumu sona erdi. Yeni eşleşme başlatabilirsin.');
-    if (state.view === 'search') $('searchDescription').textContent = 'Bağlantı yenileniyor, aramaya devam edeceğiz...';
+    state.searchInFlight = false;
+    if (state.view === 'search') $('searchDescription').textContent = 'Bağlantı yenileniyor, yeniden bağlanınca arama devam edecek...';
   });
   socket.on('app:stats', stats => {
     $('onlineHeader').textContent = typeof stats.online === 'number' ? stats.online : '0';
