@@ -29,22 +29,32 @@ app.use('/api', rateLimit({ windowMs: 60 * 1000, limit: 100, standardHeaders: 'd
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], maxAge: '1h' }));
 app.get('/shared.js', (_req, res) => res.sendFile(path.join(__dirname, 'shared.js')));
 const http = createServer(app);
+
+// Render ve benzeri reverse-proxy sunucularda tarayıcının gördüğü host,
+// backend'in gördüğü hosttan farklı olabilir. Sadece aynı siteye ait
+// origin'lere izin ver; keyfî başka siteleri kabul etme.
+function isAllowedSocketOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true; // Native istemciler / origin göndermeyen istekler
+  try {
+    const site = new URL(origin);
+    if (!['http:', 'https:'].includes(site.protocol)) return false;
+    const allowed = [req.headers.host];
+    const forwarded = req.headers['x-forwarded-host'];
+    if (typeof forwarded === 'string') allowed.push(forwarded.split(',')[0].trim());
+    const external = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_ORIGIN;
+    if (external) allowed.push(new URL(external).host);
+    return allowed.some(host => typeof host === 'string' && host.toLowerCase() === site.host.toLowerCase());
+  } catch (_err) { return false; }
+}
+
 const io = new Server(http, {
   transports: ['websocket', 'polling'],
   maxHttpBufferSize: 10_000,
   pingInterval: 25_000,
   pingTimeout: 20_000,
   cors: { origin: false },
-  allowRequest: (req, callback) => {
-    // Başka web sitelerinin kullanıcı tarayıcısında socket açmasını reddet.
-    // Doğrudan veya aynı kaynaktan gelen istekler geçerlidir.
-    const origin = req.headers.origin;
-    if (!origin) return callback(null, true);
-    try {
-      const site = new URL(origin);
-      return callback(null, site.host === req.headers.host && ['http:', 'https:'].includes(site.protocol));
-    } catch (_err) { return callback(null, false); }
-  }
+  allowRequest: (req, callback) => callback(null, isAllowedSocketOrigin(req))
 });
 
 const clients = new Map();
@@ -107,6 +117,12 @@ function endPair(state, partnerReason = 'left') {
   state.history = [];
   broadcastStats();
 }
+function peerDetails(state) {
+  const peer = currentPeer(state);
+  return peer && peer.partner === state.id ? {
+    alias: peer.alias, profile: peer.profile, game: peer.game || null, mode: state.mode
+  } : null;
+}
 function pair(a, b) {
   removeFromQueue(a);
   removeFromQueue(b);
@@ -164,6 +180,15 @@ io.on('connection', socket => {
   clients.set(socket.id, state);
   socket.emit('app:stats', publicStats());
   broadcastStats();
+
+  // Tarayıcı bir eşleşme olayını kaçırmışsa sohbet ekranını geri yükleyebilir.
+  socket.on('match:status', (_payload, ack) => {
+    safeAck(ack, {
+      ok: true,
+      status: state.status,
+      peer: state.status === 'chatting' ? peerDetails(state) : null
+    });
+  });
 
   socket.on('match:start', (payload, ack) => {
     if (!allowedTraffic(state, 'search', 16, 60_000)) return safeAck(ack, { ok: false, error: 'Çok fazla arama yaptın. Biraz sonra tekrar dene.' });
@@ -302,4 +327,4 @@ app.post('/api/admin/reports/:id/terminate', verifyAdmin, async (req, res) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 if (require.main === module) http.listen(PORT, '0.0.0.0', () => console.log(`Rast aktif: http://localhost:${PORT}`));
-module.exports = { app, http, io, clients, waiting };
+module.exports = { app, http, io, clients, waiting, isAllowedSocketOrigin };
