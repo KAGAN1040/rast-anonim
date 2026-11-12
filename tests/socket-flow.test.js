@@ -100,3 +100,24 @@ test('DUO uyumsuz rank tercihini eşleştirmez', () => {
   assert.equal(a.seen('match:found').length, 0);
   ask(a, 'match:cancel', {}); ask(b, 'match:cancel', {});
 });
+
+
+test('kaybolan match:found olayı match:status ile kurtarılır', () => {
+  const a = io.connect('recovery-a'), b = io.connect('recovery-b');
+  assert.equal(ask(a, 'match:start', spec('chat', 'Kadın', D.genders)).ok, true);
+  assert.equal(ask(a, 'match:status', {}).status, 'searching');
+  assert.equal(ask(b, 'match:start', spec('chat', 'Erkek', D.genders)).ok, true);
+  const recovered = ask(a, 'match:status', {});
+  assert.equal(recovered.status, 'chatting');
+  assert.equal(recovered.peer.alias, server.clients.get('recovery-b').alias);
+  ask(a, 'match:cancel', {});
+  assert.equal(ask(a, 'match:status', {}).status, 'idle');
+});
+
+test('same-origin ve proxy host izinli, başka origin yasak', () => {
+  const allow = server.isAllowedSocketOrigin;
+  assert.equal(allow({headers:{origin:'https://rast.example',host:'rast.example'}}), true);
+  assert.equal(allow({headers:{origin:'https://rast.example',host:'internal:10000','x-forwarded-host':'rast.example'}}), true);
+  assert.equal(allow({headers:{origin:'https://evil.example',host:'rast.example'}}), false);
+  assert.equal(allow({headers:{origin:'null',host:'rast.example'}}), false);
+});
