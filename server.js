@@ -11,6 +11,7 @@ const path = require('node:path');
 const { Server } = require('socket.io');
 const { Pool } = require('pg');
 const DATA = require('./shared');
+const MATCH = require('./matchmaking');
 
 const app = express();
 app.disable('x-powered-by');
@@ -110,46 +111,83 @@ function endPair(state, partnerReason = 'left') {
     peer.partner = null;
     peer.status = 'idle';
     peer.history = [];
+    peer.matchFit = null;
     io.to(peer.id).emit('match:ended', { reason: partnerReason });
   }
   state.partner = null;
   state.status = 'idle';
   state.history = [];
+  state.matchFit = null;
   broadcastStats();
 }
 function peerDetails(state) {
   const peer = currentPeer(state);
   return peer && peer.partner === state.id ? {
-    alias: peer.alias, profile: peer.profile, game: peer.game || null, mode: state.mode
+    alias: peer.alias, profile: peer.profile, game: peer.game || null, mode: state.mode, fit: state.matchFit
   } : null;
 }
-function pair(a, b) {
+function pair(a, b, assessment) {
   removeFromQueue(a);
   removeFromQueue(b);
   a.status = 'chatting'; b.status = 'chatting';
   a.partner = b.id; b.partner = a.id;
+  a.matchFit = assessment.aFit; b.matchFit = assessment.bFit;
   a.history = []; b.history = [];
   a.sentAt = []; b.sentAt = [];
-  io.to(a.id).emit('match:found', { alias: b.alias, profile: b.profile, game: b.game || null, mode: a.mode });
-  io.to(b.id).emit('match:found', { alias: a.alias, profile: a.profile, game: a.game || null, mode: b.mode });
+  io.to(a.id).emit('match:found', { alias: b.alias, profile: b.profile, game: b.game || null, mode: a.mode, fit: a.matchFit });
+  io.to(b.id).emit('match:found', { alias: a.alias, profile: a.profile, game: a.game || null, mode: b.mode, fit: b.matchFit });
   broadcastStats();
+}
+function runMatchmaking(now = Date.now()) {
+  for (const [mode, queue] of Object.entries(waiting)) {
+    const users = [];
+    for (const id of [...queue]) {
+      const user = clients.get(id);
+      if (!user || user.status !== 'searching' || user.mode !== mode) { queue.delete(id); continue; }
+      users.push(user);
+      const stage = MATCH.stageFor(Math.max(0, now - user.searchingSince));
+      if (user.searchStage !== stage) {
+        user.searchStage = stage;
+        io.to(id).emit('match:stage', { stage, message: MATCH.STAGES[stage].message });
+      }
+    }
+    const choices = [];
+    for (let i = 0; i < users.length; i++) {
+      const a = users[i];
+      for (let j = i + 1; j < users.length; j++) {
+        const b = users[j];
+        if (a.recent.get(b.id) > now || b.recent.get(a.id) > now) continue;
+        const result = MATCH.assess(a, b);
+        if (!result || result.requiredStage > Math.min(a.searchStage, b.searchStage)) continue;
+        choices.push({ a, b, result, since: Math.min(a.searchingSince, b.searchingSince) });
+      }
+    }
+    choices.sort((x, y) => x.result.requiredStage - y.result.requiredStage ||
+      x.result.score - y.result.score || x.since - y.since);
+    const taken = new Set();
+    for (const choice of choices) {
+      if (taken.has(choice.a.id) || taken.has(choice.b.id)) continue;
+      if (choice.a.status !== 'searching' || choice.b.status !== 'searching') continue;
+      taken.add(choice.a.id); taken.add(choice.b.id);
+      pair(choice.a, choice.b, choice.result);
+    }
+  }
 }
 function startSearch(state) {
   removeFromQueue(state);
   state.status = 'searching';
   state.partner = null;
+  state.matchFit = null;
   state.history = [];
-  const set = waiting[state.mode];
-  for (const id of [...set]) {
-    const other = clients.get(id);
-    if (!other || other.status !== 'searching') { set.delete(id); continue; }
-    if (state.recent.get(id) > Date.now() || other.recent.get(state.id) > Date.now()) continue;
-    if (DATA.compatible(state, other)) { pair(state, other); return; }
-  }
-  set.add(state.id);
+  state.searchingSince = Date.now();
+  state.searchStage = -1;
+  waiting[state.mode].add(state.id);
   io.to(state.id).emit('match:searching');
+  runMatchmaking();
   broadcastStats();
 }
+const matchTimer = setInterval(() => runMatchmaking(), 1500);
+matchTimer.unref?.();
 function labelIp(socket) {
   // IP asla kaydedilmez; yalnızca oturumları kısıtlamak için kısa ömürlü HMAC.
   const raw = socket.handshake.address || 'unknown';
@@ -175,6 +213,7 @@ io.on('connection', socket => {
   const state = {
     id: socket.id, alias: alias(), mode: null, profile: null, filters: null, game: null, gameFilters: null,
     status: 'idle', partner: null, history: [], recent: new Map(),
+    searchingSince: 0, searchStage: -1, matchFit: null,
     limits: Object.create(null), sentAt: [], fp: labelIp(socket)
   };
   clients.set(socket.id, state);
@@ -186,6 +225,7 @@ io.on('connection', socket => {
     safeAck(ack, {
       ok: true,
       status: state.status,
+      stage: state.status === 'searching' ? state.searchStage : null,
       peer: state.status === 'chatting' ? peerDetails(state) : null
     });
   });
@@ -206,7 +246,7 @@ io.on('connection', socket => {
   });
 
   socket.on('match:cancel', (_payload, ack) => {
-    if (state.status === 'searching') { removeFromQueue(state); state.status = 'idle'; broadcastStats(); }
+    if (state.status === 'searching') { removeFromQueue(state); state.status = 'idle'; state.matchFit = null; broadcastStats(); }
     else if (state.status === 'chatting') endPair(state, 'left');
     safeAck(ack, { ok: true });
   });
@@ -327,4 +367,4 @@ app.post('/api/admin/reports/:id/terminate', verifyAdmin, async (req, res) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 if (require.main === module) http.listen(PORT, '0.0.0.0', () => console.log(`Rast aktif: http://localhost:${PORT}`));
-module.exports = { app, http, io, clients, waiting, isAllowedSocketOrigin };
+module.exports = { app, http, io, clients, waiting, isAllowedSocketOrigin, runMatchmaking };
