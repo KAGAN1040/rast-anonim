@@ -16,6 +16,14 @@ Gerçek zamanlı, **18+**, mobil ve masaüstü uyumlu, hesap açmadan çalışan
 - **Temel güvenlik:** Mesajlar HTML olarak çalıştırılmaz, sunucuda giriş doğrulama ve mesaj hız limiti, Helmet güvenlik başlıkları.
 - **Tasarım:** Koyu tema, animasyonlu radar bekleme ekranı, responsive mobil sohbet.
 
+## Bağlantı sorunları (Chrome / mobil / Render)
+
+- Site önce **HTTP polling** ile bağlanır, mümkünse **WebSocket**'e geçer. WebSocket'i engelleyen ağlarda da eşleşme yapılabilir.
+- Üstteki **Bağlı / Sunucuya ulaşılamıyor** göstergesi bağlantı durumunu gösterir. Bağlantı koparsa arama yeniden başlatılır; sunucudaki eşleşme durumu sorgulanır.
+- İki kullanıcının **aynı modda**, yaş/cinsiyet tercihlerinin **karşılıklı uyumlu** olması gerekir. Duo için oyun ve rank tercihleri de uymalıdır.
+- Render reverse proxy / özel alan adı için aynı site Origin kontrolü kullanılır. Özel alan adı sorun çıkarırsa PUBLIC_ORIGIN ortam değişkenini ayarla.
+- Güncelleme sonrası önbellekte eski kod kalırsa Ctrl+Shift+R ile yenile.
+
 ## Render'a yükleme — adım adım
 
 1. Bu ZIP'i aç. Klasörün içindeki **tüm dosyaları** (özellikle `server.js`, `package.json`, `render.yaml`, `shared.js`, `public/`) yeni bir **GitHub repository**'sinin kök dizinine yükle. `.env` içeriğini GitHub'a koyma.
